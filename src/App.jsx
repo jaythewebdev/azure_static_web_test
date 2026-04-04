@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 
-// REACT_APP_API_URL is injected at build time (npm run build).
-// Falls back to localhost for local dev.
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:7071";
+const CLIENT_SECRET = process.env.REACT_APP_CLIENT_SECRET || "local-dev-client-secret";
 
 function App() {
   const [helloData, setHelloData] = useState(null);
@@ -11,11 +10,38 @@ function App() {
   const [echoInput, setEchoInput] = useState("");
   const [echoResponse, setEchoResponse] = useState(null);
   const [loading, setLoading] = useState("");
+  const [authStatus, setAuthStatus] = useState("Authenticating...");
+  const tokenRef = useRef(null);
+
+  // Get JWT on mount
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ client_secret: CLIENT_SECRET }),
+        });
+        if (!res.ok) throw new Error("Auth failed");
+        const data = await res.json();
+        tokenRef.current = data.token;
+        setAuthStatus("Authenticated");
+      } catch (err) {
+        setAuthStatus("Auth failed: " + err.message);
+      }
+    };
+    fetchToken();
+  }, []);
+
+  const authHeaders = (extra = {}) => ({
+    ...(tokenRef.current && { Authorization: `Bearer ${tokenRef.current}` }),
+    ...extra,
+  });
 
   const fetchHello = async () => {
     setLoading("hello");
     try {
-      const res = await fetch(`${API_BASE}/api/hello`);
+      const res = await fetch(`${API_BASE}/api/hello`, { headers: authHeaders() });
       const data = await res.json();
       setHelloData(data);
     } catch (err) {
@@ -27,7 +53,7 @@ function App() {
   const fetchItems = async () => {
     setLoading("items");
     try {
-      const res = await fetch(`${API_BASE}/api/items`);
+      const res = await fetch(`${API_BASE}/api/items`, { headers: authHeaders() });
       const data = await res.json();
       setItems(data.items || []);
     } catch (err) {
@@ -43,7 +69,7 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/api/echo`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ message: echoInput }),
       });
       const data = await res.json();
@@ -110,7 +136,7 @@ function App() {
       </div>
 
       <p className="status">
-        API Target: {API_BASE}
+        API: {API_BASE} | JWT: {authStatus}
       </p>
     </div>
   );
