@@ -1,0 +1,5 @@
+# .gitignore for React
+node_modules/
+build/
+.env.local
+.env.production.local
