@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import "./App.css";
 
-// In production, the API base URL points to your Azure Function App.
-// During local dev, it points to localhost:7071.
+// REACT_APP_API_URL is injected at build time (npm run build).
+// Falls back to localhost for local dev.
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:7071";
 
 function App() {
