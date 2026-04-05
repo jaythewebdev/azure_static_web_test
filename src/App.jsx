@@ -9,6 +9,8 @@ function App() {
   const [items, setItems] = useState([]);
   const [echoInput, setEchoInput] = useState("");
   const [echoResponse, setEchoResponse] = useState(null);
+  const [medicalInput, setMedicalInput] = useState("");
+  const [medicalResult, setMedicalResult] = useState(null);
   const [loading, setLoading] = useState("");
   const [authStatus, setAuthStatus] = useState("Authenticating...");
   const tokenRef = useRef(null);
@@ -80,6 +82,24 @@ function App() {
     setLoading("");
   };
 
+  const extractMedical = async () => {
+    if (!medicalInput.trim()) return;
+    setLoading("medical");
+    setMedicalResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/structured`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ query: medicalInput }),
+      });
+      const data = await res.json();
+      setMedicalResult(data);
+    } catch (err) {
+      setMedicalResult({ error: err.message });
+    }
+    setLoading("");
+  };
+
   return (
     <div className="app">
       <h1>Azure Deploy Demo</h1>
@@ -132,6 +152,40 @@ function App() {
         </button>
         {echoResponse && (
           <div className="response-box">{JSON.stringify(echoResponse, null, 2)}</div>
+        )}
+      </div>
+
+      {/* Medical Data Extraction Card */}
+      <div className="card">
+        <h2>POST /api/structured <span className="badge-ai">AI</span></h2>
+        <p className="card-desc">Extract medical parameters from clinical text using GPT</p>
+        <textarea
+          className="medical-input"
+          placeholder="Paste medical document text here... e.g., Patient John Smith, 45 year old male, diagnosed with Type 2 Diabetes. BP 130/85, HR 78 bpm."
+          value={medicalInput}
+          onChange={(e) => setMedicalInput(e.target.value)}
+          rows={4}
+        />
+        <button className="btn btn-ai" onClick={extractMedical} disabled={loading === "medical"}>
+          {loading === "medical" ? "Extracting..." : "Extract Medical Data"}
+        </button>
+        {medicalResult && !medicalResult.error && medicalResult.result && (
+          <div className="medical-result">
+            <div className="medical-grid">
+              <div className="med-field"><span className="med-label">Patient</span><span className="med-value">{medicalResult.result.patient_name || "—"}</span></div>
+              <div className="med-field"><span className="med-label">Age</span><span className="med-value">{medicalResult.result.age || "—"}</span></div>
+              <div className="med-field"><span className="med-label">Gender</span><span className="med-value">{medicalResult.result.gender || "—"}</span></div>
+              <div className="med-field"><span className="med-label">Diagnosis</span><span className="med-value">{medicalResult.result.diagnosis || "—"}</span></div>
+              <div className="med-field"><span className="med-label">BP</span><span className="med-value">{medicalResult.result.blood_pressure || "—"}</span></div>
+              <div className="med-field"><span className="med-label">Heart Rate</span><span className="med-value">{medicalResult.result.heart_rate || "—"}</span></div>
+              <div className="med-field"><span className="med-label">Temperature</span><span className="med-value">{medicalResult.result.temperature || "—"}</span></div>
+              <div className="med-field med-full"><span className="med-label">Medications</span><span className="med-value">{medicalResult.result.medications?.join(", ") || "—"}</span></div>
+            </div>
+            <p className="usage-info">Model: {medicalResult.model} | Tokens: {medicalResult.usage?.prompt_tokens + medicalResult.usage?.completion_tokens}</p>
+          </div>
+        )}
+        {medicalResult && medicalResult.error && (
+          <div className="response-box error-box">{medicalResult.error}</div>
         )}
       </div>
 
